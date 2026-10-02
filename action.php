@@ -58,7 +58,7 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
                 if ($left > 0) {
                     $this->deny(429, 'gate_locked', $script, $left);
                 }
-                if ($script === 'doku.php' && $method === 'POST' && isset($_POST['ptotp'])) {
+                if ($this->isPageScript($script) && $method === 'POST' && isset($_POST['ptotp'])) {
                     if ($h->otpCheck($_POST['ptotp'])) {
                         $h->clearFail($who);
                         list($tok, $ttl) = $h->issueToken($tunnelId);
@@ -78,7 +78,7 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
         // 여기까지 왔으면 인증을 통과했거나(또는 OTP 없이 열기로 한 경우) — 공개 중 제한을 적용한다
         if ($this->getConf('readonly') && in_array($method, array('POST', 'PUT', 'DELETE', 'PATCH'), true)) {
             $do = isset($_REQUEST['do']) ? $_REQUEST['do'] : '';
-            if (!($script === 'doku.php' && $do === 'login')) {
+            if (!($this->isPageScript($script) && $do === 'login')) {
                 $this->deny(403, 'deny_readonly', $script, 0, true);
             }
         }
@@ -108,6 +108,12 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
 
     // ------------------------------------------------------------------ 응답
 
+    /** 사람이 보는 화면(코드 입력창을 보여 줄 곳): doku.php 와, 주소만 열었을 때 열리는 index.php */
+    protected function isPageScript($script)
+    {
+        return $script === 'doku.php' || $script === 'index.php';
+    }
+
     /** 같은 위치로 돌려보낼 안전한 경로(열린 리다이렉트 방지: 항상 이 사이트 안의 경로만) */
     protected function safePath()
     {
@@ -127,7 +133,7 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
         header('X-Robots-Tag: noindex, nofollow');
         header('X-Frame-Options: DENY');
         header('X-Content-Type-Options: nosniff');
-        if ($plain || $script !== 'doku.php' || !in_array($method, array('GET', 'HEAD', 'POST'), true)) {
+        if ($plain || !$this->isPageScript($script) || !in_array($method, array('GET', 'HEAD', 'POST'), true)) {
             header('Content-Type: text/plain; charset=utf-8');
             echo $code . ' ' . ($msgKey !== '' ? $this->getLang($msgKey) : $this->getLang('gate_title'));
             exit;
