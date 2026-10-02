@@ -1,0 +1,7 @@
+base   publictunnel
+author iamtalker
+email  iamtalker@users.noreply.github.com
+date   2026-10-02
+name   Public Tunnel (임시 공개 주소)
+desc   cloudflared 빠른 터널로 이 위키를 임시 공개 주소(https://….trycloudflare.com)로 열고 닫습니다 (관리자 전용, 계정 불필요)
+url    https://github.com/iamtalker/dokuwiki-publictunnel
