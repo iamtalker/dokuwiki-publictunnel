@@ -509,6 +509,9 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
                 if (!empty($conf['remote'])) {
                     echo '<div class="info">' . hsc($this->getLang('warn_remote')) . '</div>';
                 }
+                if (!$this->getConf('readonly') || !$this->getConf('block_admin')) {
+                    echo '<div class="info">' . hsc($this->getLang('warn_open')) . '</div>';
+                }
                 $chk = '<p style="margin:.4em 0"><label><input type="checkbox" name="confirm" value="1" /> '
                     . hsc($this->getLang('confirm')) . '</label></p>';
                 if (!$h->otpEnabled()) {
@@ -522,7 +525,9 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
         $this->otpBox();
 
         echo '<h2>' . hsc($this->getLang('sec_title')) . '</h2><ul>';
-        foreach (array('sec_1', 'sec_2', 'sec_3', 'sec_4') as $k) {
+        // 공개 주소의 쓰기·관리 제한은 설정(readonly, block_admin)에 따라 다르므로 지금 설정에 맞는 설명을 보여 준다
+        $strict = $this->getConf('readonly') && $this->getConf('block_admin');
+        foreach (array('sec_1', $strict ? 'sec_2' : 'sec_2_open', 'sec_3', 'sec_4') as $k) {
             echo '<li>' . hsc($this->getLang($k)) . '</li>';
         }
         echo '</ul>';
