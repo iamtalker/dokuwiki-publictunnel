@@ -236,11 +236,17 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
     /** 새 비밀 만들기(아직 켜지 않음: 인증기에 등록하고 코드를 확인해야 켜진다) */
     public function otpCreatePending()
     {
-        $o = $this->otpInfo();                    // 이미 켜 둔 OTP 는 새 비밀을 확인하기 전까지 그대로 둔다
-        $o['pending'] = $this->newSecret();
-        $o += array('secret' => '', 'enabled' => false, 'last_step' => 0);
-        $this->writeJson('otp.json', $o);
-        return $o;
+        // 이미 켜 둔 OTP 는 새 비밀을 확인하기 전까지 그대로 둔다.
+        // 대기 중인 비밀이 있으면 새로 만들지 않는다: 화면을 새로고침(POST 재전송)해도 QR 과 키가 바뀌지 않게.
+        // (다시 만들려면 [취소] 후 [OTP 만들기])
+        return $this->updateJson('otp.json', function ($o) {
+            if (empty($o['pending'])) {
+                $o['pending'] = $this->newSecret();
+                $o['pending_at'] = time();
+            }
+            $o += array('secret' => '', 'enabled' => false, 'last_step' => 0);
+            return array($o, $o);
+        });
     }
 
     public function otpCancelPending()

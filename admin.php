@@ -407,7 +407,7 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
                     @unlink($h->path('cookie.key'));    // 비밀이 바뀌었으니 이미 인증된 접속도 모두 해제
                     msg($this->getLang('msg_otp_on'), 1);
                 } else {
-                    msg($this->getLang('err_otp_code'), -1);
+                    msg(sprintf($this->getLang('err_otp_code'), gmdate('H:i:s')), -1);
                 }
                 break;
             case 'otp_off':
@@ -449,6 +449,8 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             $secret = $o['pending'];
             global $INFO;
             $label = !empty($INFO['userinfo']['name']) ? $INFO['userinfo']['name'] : 'wiki';
+            // 인증기 앱에 같은 이름의 옛 항목이 있어도 구별되도록 만든 시각을 붙인다(대기 키는 화면을 다시 열어도 같다)
+            $label .= ' ' . date('m-d H:i', !empty($o['pending_at']) ? (int) $o['pending_at'] : time());
             echo '<div class="info">' . hsc($this->getLang('otp_setup')) . '</div>';
             // QR 코드: 이 브라우저 안에서 그린다(qr.js). 키가 외부 서비스로 나가지 않는다. 안 그려지면 아래 키를 직접 넣는다.
             echo '<div id="ptunnel-qr" style="margin:.8em 0;line-height:0"></div>';
