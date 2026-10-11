@@ -571,6 +571,7 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             echo '<details style="margin-top:1em"><summary>' . hsc($this->getLang('log')) . '</summary><pre>'
                 . hsc($tail) . '</pre></details>';
         }
+        echo '<div class="info" style="margin-top:1.5em">' . hsc(sprintf($this->getLang('uninstall_note'), $h->dataDir())) . '</div>';
         echo '<p style="margin-top:1.5em;color:#777;font-size:.9em">' . hsc($this->getLang('footer')) . '</p>';
     }
 }

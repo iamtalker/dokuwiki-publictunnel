@@ -76,3 +76,4 @@ $lang['copied']         = 'Copied';
 $lang['otp_open']       = 'Open in an authenticator app on this device';
 $lang['gate_used']    = 'That code was already used. Wait for the next code in the app (up to 30 seconds) and enter it.';
 $lang['otp_pending_note'] = 'The public address is still checked with the PREVIOUS key. A new key only takes effect after you confirm it below. Until then codes of the new app entry will be refused.';
+$lang['uninstall_note'] = 'When you delete this plugin: 1) stop the tunnel first, 2) delete the plugin folder, 3) also delete the data folder %s completely. It keeps the OTP key, the cookie key and the lock records, and an old key comes back if you install the plugin again without deleting it.';
