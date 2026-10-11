@@ -461,8 +461,18 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             echo '<p><strong>' . hsc($this->getLang('otp_secret')) . ':</strong> <code style="font-size:1.2em;letter-spacing:.1em">'
                 . hsc(trim(chunk_split($secret, 4, ' '))) . '</code><br><span style="color:#777;font-size:.9em">'
                 . hsc($this->getLang('otp_key_note')) . '</span></p>';
-            echo '<p style="color:#777;font-size:.9em;word-break:break-all">' . hsc($this->getLang('otp_uri')) . ': '
-                . hsc($h->otpUri($secret, $label)) . '</p>';
+            // 주소(otpauth)를 복사해 휴대폰에서 열어 등록할 수도 있다(QR 이나 키 입력 대신)
+            $uri = $h->otpUri($secret, $label);
+            echo '<p style="margin:.4em 0"><button type="button" class="button" id="ptunnel-copy" data-uri="' . hsc($uri) . '" '
+                . 'data-done="' . hsc($this->getLang('copied')) . '">' . hsc($this->getLang('btn_copy')) . '</button> '
+                . '<a href="' . hsc($uri) . '">' . hsc($this->getLang('otp_open')) . '</a></p>';
+            echo '<script>(function(){var b=document.getElementById("ptunnel-copy");if(!b)return;b.onclick=function(){'
+                . 'var u=b.getAttribute("data-uri"),d=b.getAttribute("data-done");'
+                . 'function ok(){var t=b.textContent;b.textContent=d;setTimeout(function(){b.textContent=t;},1500);}'
+                . 'function old(){var a=document.createElement("textarea");a.value=u;document.body.appendChild(a);a.select();'
+                . 'try{document.execCommand("copy");ok();}catch(e){}document.body.removeChild(a);}'
+                . 'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(ok,old);}else{old();}};})();</script>';
+            echo '<p style="color:#777;font-size:.9em;word-break:break-all">' . hsc($this->getLang('otp_uri')) . ': ' . hsc($uri) . '</p>';
             $in = '<p style="margin:.4em 0"><label>' . hsc($this->getLang('otp_code')) . ' <input type="text" name="code" inputmode="numeric" '
                 . 'pattern="[0-9 ]*" maxlength="7" autocomplete="off" style="width:8em" required /></label></p>';
             echo $this->form('otp_confirm', $this->getLang('btn_otp_confirm'), $in);

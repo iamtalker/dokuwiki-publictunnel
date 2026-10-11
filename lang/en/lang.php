@@ -71,3 +71,6 @@ $lang['deny_readonly'] = 'The public address is read-only.';
 $lang['gate_state']    = 'The access check is temporarily unavailable. Try again in a moment.';
 $lang['err_stop']      = 'Could not stop the tunnel program. It is still running and stays protected; try again or end the cloudflared process manually.';
 $lang['otp_key_note'] = 'The key uses only the letters A–Z and the digits 2–7 (no 0, 1, 8, 9: an O is always the letter O). Spaces are only for reading.';
+$lang['btn_copy']       = 'Copy the otpauth address';
+$lang['copied']         = 'Copied';
+$lang['otp_open']       = 'Open in an authenticator app on this device';
