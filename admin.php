@@ -450,8 +450,15 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             global $INFO;
             $label = !empty($INFO['userinfo']['name']) ? $INFO['userinfo']['name'] : 'wiki';
             echo '<div class="info">' . hsc($this->getLang('otp_setup')) . '</div>';
+            // QR 코드: 이 브라우저 안에서 그린다(qr.js). 키가 외부 서비스로 나가지 않는다. 안 그려지면 아래 키를 직접 넣는다.
+            echo '<div id="ptunnel-qr" style="margin:.8em 0;line-height:0"></div>';
+            echo '<script>' . (string) @file_get_contents(__DIR__ . '/qr.js')
+                . ';(function(){try{document.getElementById("ptunnel-qr").innerHTML=ptQrSvg('
+                . json_encode($h->otpUri($secret, $label), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
+                . ',220);}catch(e){}})();</script>';
             echo '<p><strong>' . hsc($this->getLang('otp_secret')) . ':</strong> <code style="font-size:1.2em;letter-spacing:.1em">'
-                . hsc(trim(chunk_split($secret, 4, ' '))) . '</code></p>';
+                . hsc(trim(chunk_split($secret, 4, ' '))) . '</code><br><span style="color:#777;font-size:.9em">'
+                . hsc($this->getLang('otp_key_note')) . '</span></p>';
             echo '<p style="color:#777;font-size:.9em;word-break:break-all">' . hsc($this->getLang('otp_uri')) . ': '
                 . hsc($h->otpUri($secret, $label)) . '</p>';
             $in = '<p style="margin:.4em 0"><label>' . hsc($this->getLang('otp_code')) . ' <input type="text" name="code" inputmode="numeric" '
