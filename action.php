@@ -67,6 +67,9 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
                     $this->deny(429, 'gate_locked', $script, $left);
                 }
                 if ($this->isPageScript($script) && $method === 'POST' && isset($_POST['ptotp'])) {
+                    if ($h->otpIsReplay($_POST['ptotp'])) {     // 방금 쓴 코드: 틀린 시도로 세지 않고 안내만 한다
+                        $this->deny(401, 'gate_used', $script, 0);
+                    }
                     if (!$h->reserveAttempt($who)) {            // 확인 전에 시도 횟수를 센다(동시 요청 포함)
                         $this->deny(429, 'gate_locked', $script, max(1, $h->lockedFor($who)));
                     }
@@ -153,6 +156,8 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
         $note = '';
         if ($msgKey === 'gate_bad') {
             $note = $this->getLang('gate_bad');
+        } elseif ($msgKey === 'gate_used') {
+            $note = $this->getLang('gate_used');
         } elseif ($msgKey === 'gate_locked') {
             $note = sprintf($this->getLang('gate_locked'), ceil($left / 60));
         }

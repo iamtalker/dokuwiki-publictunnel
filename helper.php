@@ -297,6 +297,33 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
         });
     }
 
+    /**
+     * 이 코드가 "이미 쓴 코드"인가(앞뒤 30초 안의 단계 중 이미 쓴 단계와 같은 코드).
+     * 확인에 방금 쓴 코드를 곧바로 다시 넣은 정직한 사용자를 틀린 시도로 세지 않기 위해 쓴다.
+     */
+    public function otpIsReplay($code)
+    {
+        $o = $this->otpInfo();
+        $input = preg_replace('/s+/', '', (string) $code);
+        if (empty($o['enabled']) || empty($o['secret']) || !preg_match('/^d{6}$/', $input)) {
+            return false;
+        }
+        $last = isset($o['last_step']) ? (int) $o['last_step'] : 0;
+        $now = (int) floor(time() / 30);
+        for ($d = -1; $d <= 1; $d++) {
+            if ($now + $d <= $last && hash_equals($this->code($o['secret'], $now + $d), $input)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 새 터널을 열 때: 이전 터널에서 쌓인 틀린 횟수와 잠금은 지운다(주소도 쿠키도 새로 시작) */
+    public function clearAllFails()
+    {
+        $this->writeJson('fail.json', array());
+    }
+
     public function otpUri($secret, $label)
     {
         return 'otpauth://totp/' . rawurlencode('DokuWiki:' . $label) . '?secret=' . $secret

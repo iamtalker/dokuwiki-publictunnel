@@ -74,3 +74,5 @@ $lang['otp_key_note'] = 'The key uses only the letters A–Z and the digits 2–
 $lang['btn_copy']       = 'Copy the otpauth address';
 $lang['copied']         = 'Copied';
 $lang['otp_open']       = 'Open in an authenticator app on this device';
+$lang['gate_used']    = 'That code was already used. Wait for the next code in the app (up to 30 seconds) and enter it.';
+$lang['otp_pending_note'] = 'The public address is still checked with the PREVIOUS key. A new key only takes effect after you confirm it below. Until then codes of the new app entry will be refused.';

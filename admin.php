@@ -240,6 +240,7 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
         @unlink($log);
         $started = time();
         // 터널을 열기 전에 상태(검문소 설정)부터 적는다: 주소가 생기는 첫 순간부터 검문소가 켜져 있게
+        $h->clearAllFails();
         $h->writeState(array('pid' => 0, 'started' => $started, 'port' => $port, 'local' => $local, 'gate' => $gate));
         $pid = 0;
 
@@ -451,6 +452,9 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             $label = !empty($INFO['userinfo']['name']) ? $INFO['userinfo']['name'] : 'wiki';
             // 인증기 앱에 같은 이름의 옛 항목이 있어도 구별되도록 만든 시각을 붙인다(대기 키는 화면을 다시 열어도 같다)
             $label .= ' ' . date('m-d H:i', !empty($o['pending_at']) ? (int) $o['pending_at'] : time());
+            if ($h->otpEnabled()) {
+                echo '<div class="error"><strong>' . hsc($this->getLang('otp_pending_note')) . '</strong></div>';
+            }
             echo '<div class="info">' . hsc($this->getLang('otp_setup')) . '</div>';
             // QR 코드: 이 브라우저 안에서 그린다(qr.js). 키가 외부 서비스로 나가지 않는다. 안 그려지면 아래 키를 직접 넣는다.
             echo '<div id="ptunnel-qr" style="margin:.8em 0;line-height:0"></div>';
