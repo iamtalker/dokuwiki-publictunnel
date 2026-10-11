@@ -220,7 +220,8 @@
     var g = ptQrMatrix(text), n = g.length, q = 4, d = '', x, y;
     for (y = 0; y < n; y++) for (x = 0; x < n; x++) if (g[y][x]) d += 'M' + (x + q) + ' ' + (y + q) + 'h1v1h-1z';
     var s = n + q * 2;
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + s + ' ' + s + '" width="' + (px || 220) + '" height="' + (px || 220) + '" shape-rendering="crispEdges">'
+    var w = (px || 360);
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + s + ' ' + s + '" width="' + w + '" height="' + w + '" style="display:block;width:' + w + 'px!important;height:' + w + 'px!important;max-width:100%;min-width:' + Math.min(w, 240) + 'px" shape-rendering="crispEdges">'
       + '<rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
   }
 

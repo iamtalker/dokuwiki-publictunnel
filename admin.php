@@ -455,7 +455,7 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             echo '<script>' . (string) @file_get_contents(__DIR__ . '/qr.js')
                 . ';(function(){try{document.getElementById("ptunnel-qr").innerHTML=ptQrSvg('
                 . json_encode($h->otpUri($secret, $label), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
-                . ',220);}catch(e){}})();</script>';
+                . ',360);}catch(e){}})();</script>';
             echo '<p><strong>' . hsc($this->getLang('otp_secret')) . ':</strong> <code style="font-size:1.2em;letter-spacing:.1em">'
                 . hsc(trim(chunk_split($secret, 4, ' '))) . '</code><br><span style="color:#777;font-size:.9em">'
                 . hsc($this->getLang('otp_key_note')) . '</span></p>';
