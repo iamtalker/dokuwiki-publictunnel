@@ -36,26 +36,85 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
         return $this->dataDir() . '/' . $name;
     }
 
-    protected function readJson($name)
+    /**
+     * 상태 파일들을 읽고 쓰는 모든 동작은 이 잠금 하나 안에서 한다.
+     * (읽는 쪽이 쓰는 도중의 빈 파일을 보거나, 동시 요청이 서로의 갱신을 덮어쓰지 않도록)
+     * 잠금 안에서 다시 잠그지 않도록, 잠금 안에서는 raw* 만 쓴다.
+     */
+    protected function locked($fn)
+    {
+        $lock = @fopen($this->path('rw.lock'), 'c');
+        if ($lock) {
+            flock($lock, LOCK_EX);
+        }
+        try {
+            return $fn();
+        } finally {
+            if ($lock) {
+                flock($lock, LOCK_UN);
+                fclose($lock);
+            }
+        }
+    }
+
+    /** 잠금 없이 읽는다. $status: 'absent'(파일 없음) | 'invalid'(깨졌거나 비어 있음) | 'ok' */
+    protected function rawRead($name, &$status = null)
     {
         $f = $this->path($name);
         if (!is_file($f)) {
+            $status = 'absent';
             return array();
         }
         $j = json_decode((string) @file_get_contents($f), true);
-        return is_array($j) ? $j : array();
+        if (!is_array($j)) {
+            $status = 'invalid';
+            return array();
+        }
+        $status = 'ok';
+        return $j;
+    }
+
+    protected function rawWrite($name, $data)
+    {
+        $f = $this->path($name);
+        file_put_contents($f, json_encode($data));
+        @chmod($f, 0600);
+    }
+
+    protected function readJson($name, &$status = null)
+    {
+        $st = null;
+        $data = $this->locked(function () use ($name, &$st) {
+            return $this->rawRead($name, $st);
+        });
+        $status = $st;
+        return $data;
     }
 
     protected function writeJson($name, $data)
     {
-        $f = $this->path($name);
-        file_put_contents($f, json_encode($data), LOCK_EX);
-        @chmod($f, 0600);
+        $this->locked(function () use ($name, $data) {
+            $this->rawWrite($name, $data);
+        });
     }
 
-    public function readState()
+    /**
+     * 읽고-고치고-쓰기를 한 번에(잠금 안에서). $fn($data) 는 array(새 데이터, 돌려줄 값) 을 돌려준다.
+     */
+    protected function updateJson($name, $fn)
     {
-        return $this->readJson('tunnel.json');
+        return $this->locked(function () use ($name, $fn) {
+            $data = $this->rawRead($name);
+            list($new, $result) = $fn($data);
+            $this->rawWrite($name, $new);
+            return $result;
+        });
+    }
+
+    /** $status: 'absent' | 'invalid' | 'ok' (invalid 이면 터널이 열려 있을 수 있으니 호출한 쪽이 막아야 한다) */
+    public function readState(&$status = null)
+    {
+        return $this->readJson('tunnel.json', $status);
     }
 
     public function writeState($state)
@@ -65,7 +124,9 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
 
     public function clearState()
     {
-        @unlink($this->path('tunnel.json'));
+        $this->locked(function () {
+            @unlink($this->path('tunnel.json'));
+        });
     }
 
     // ------------------------------------------------------------------ 터널로 들어온 요청인가
@@ -216,17 +277,18 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
     /** 공개 주소의 OTP 확인. 성공하면 true. 이미 쓴 코드는 다시 못 쓴다. */
     public function otpCheck($code)
     {
-        $o = $this->otpInfo();
-        if (empty($o['enabled']) || empty($o['secret'])) {
-            return false;
-        }
-        $step = $this->verify($code, $o['secret'], isset($o['last_step']) ? $o['last_step'] : 0);
-        if ($step === false) {
-            return false;
-        }
-        $o['last_step'] = $step;
-        $this->writeJson('otp.json', $o);
-        return true;
+        // 확인과 "쓴 단계" 기록을 한 번에 한다: 같은 코드를 동시에 두 번 보내도 한 번만 통과한다
+        return $this->updateJson('otp.json', function ($o) use ($code) {
+            if (empty($o['enabled']) || empty($o['secret'])) {
+                return array($o, false);
+            }
+            $step = $this->verify($code, $o['secret'], isset($o['last_step']) ? $o['last_step'] : 0);
+            if ($step === false) {
+                return array($o, false);
+            }
+            $o['last_step'] = $step;
+            return array($o, true);
+        });
     }
 
     public function otpUri($secret, $label)
@@ -240,11 +302,13 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
     protected function cookieKey()
     {
         $f = $this->path('cookie.key');
-        if (!is_file($f) || filesize($f) < 32) {
-            file_put_contents($f, bin2hex(random_bytes(32)), LOCK_EX);
-            @chmod($f, 0600);
-        }
-        return (string) file_get_contents($f);
+        return (string) $this->locked(function () use ($f) {
+            if (!is_file($f) || filesize($f) < 32) {
+                file_put_contents($f, bin2hex(random_bytes(32)));
+                @chmod($f, 0600);
+            }
+            return file_get_contents($f);
+        });
     }
 
     protected function b64u($s)
@@ -283,34 +347,44 @@ class helper_plugin_publictunnel extends DokuWiki_Plugin
         return (isset($db[$id]['until']) && $db[$id]['until'] > time()) ? (int) $db[$id]['until'] - time() : 0;
     }
 
-    public function recordFail($id)
+    /**
+     * 코드를 확인하기 "전에" 시도 한 번을 예약한다. 이미 막힌 접속자면 false.
+     * 확인보다 먼저, 그리고 잠금 안에서 세기 때문에 동시에 쏟아낸 시도도 접속자별 5회를 넘지 못한다.
+     * 맞으면 호출한 쪽이 clearFail() 로 기록을 지운다.
+     * (예전에는 틀릴 때마다 잠깐 재웠으나, 서버 작업 스레드를 붙잡아 위키를 멈추게 할 수 있어 없앴다.)
+     */
+    public function reserveAttempt($id)
     {
-        $db = $this->readJson('fail.json');
-        $now = time();
-        foreach ($db as $k => $row) {               // 오래된 기록 정리
-            if (empty($row['until']) && (!isset($row['first']) || $row['first'] < $now - self::FAIL_WINDOW) || (!empty($row['until']) && $row['until'] < $now - 3600)) {
-                unset($db[$k]);
+        return $this->updateJson('fail.json', function ($db) use ($id) {
+            $now = time();
+            foreach ($db as $k => $row) {               // 오래된 기록 정리
+                if (empty($row['until']) && (!isset($row['first']) || $row['first'] < $now - self::FAIL_WINDOW) || (!empty($row['until']) && $row['until'] < $now - 3600)) {
+                    unset($db[$k]);
+                }
             }
-        }
-        $row = isset($db[$id]) ? $db[$id] : array('n' => 0, 'first' => $now, 'until' => 0);
-        if ($row['first'] < $now - self::FAIL_WINDOW) {
-            $row = array('n' => 0, 'first' => $now, 'until' => 0);
-        }
-        $row['n']++;
-        if ($row['n'] >= self::FAIL_MAX) {
-            $row['until'] = $now + self::LOCK_SECONDS;
-            $row['n'] = 0;
-            $row['first'] = $now;
-        }
-        $db[$id] = $row;
-        $this->writeJson('fail.json', $db);
-        usleep(700000);                              // 틀릴 때마다 조금 늦춰서 연속 시도를 느리게
+            if (isset($db[$id]['until']) && $db[$id]['until'] > $now) {
+                return array($db, false);
+            }
+            $row = isset($db[$id]) ? $db[$id] : array('n' => 0, 'first' => $now, 'until' => 0);
+            if ($row['first'] < $now - self::FAIL_WINDOW) {
+                $row = array('n' => 0, 'first' => $now, 'until' => 0);
+            }
+            $row['n']++;
+            if ($row['n'] >= self::FAIL_MAX) {
+                $row['until'] = $now + self::LOCK_SECONDS;
+                $row['n'] = 0;
+                $row['first'] = $now;
+            }
+            $db[$id] = $row;
+            return array($db, true);
+        });
     }
 
     public function clearFail($id)
     {
-        $db = $this->readJson('fail.json');
-        unset($db[$id]);
-        $this->writeJson('fail.json', $db);
+        $this->updateJson('fail.json', function ($db) use ($id) {
+            unset($db[$id]);
+            return array($db, null);
+        });
     }
 }

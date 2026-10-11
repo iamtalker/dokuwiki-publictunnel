@@ -33,8 +33,16 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
         if (!$h || !$h->isTunnelRequest()) {
             return null;
         }
-        $st = $h->readState();
-        return ($st && !empty($st['gate'])) ? $st : null;
+        $st = $h->readState($status);
+        if ($status === 'absent') {
+            return null;            // 이 플러그인이 연 터널이 없다
+        }
+        if ($status !== 'ok' || empty($st['gate'])) {
+            // 상태 파일은 있는데 읽을 수 없다: 터널이 열려 있을 수 있으니 통과시키지 않는다(닫힌 채로 실패)
+            $script = basename(isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '');
+            $this->deny(503, 'gate_state', $script, 0, true);
+        }
+        return $st;
     }
 
     // ------------------------------------------------------------------ 검문소
@@ -59,6 +67,9 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
                     $this->deny(429, 'gate_locked', $script, $left);
                 }
                 if ($this->isPageScript($script) && $method === 'POST' && isset($_POST['ptotp'])) {
+                    if (!$h->reserveAttempt($who)) {            // 확인 전에 시도 횟수를 센다(동시 요청 포함)
+                        $this->deny(429, 'gate_locked', $script, max(1, $h->lockedFor($who)));
+                    }
                     if ($h->otpCheck($_POST['ptotp'])) {
                         $h->clearFail($who);
                         list($tok, $ttl) = $h->issueToken($tunnelId);
@@ -68,7 +79,6 @@ class action_plugin_publictunnel extends DokuWiki_Action_Plugin
                         header('Cache-Control: no-store');
                         exit;
                     }
-                    $h->recordFail($who);
                     $this->deny(401, 'gate_bad', $script, $h->lockedFor($who));
                 }
                 $this->deny(401, '', $script, 0);

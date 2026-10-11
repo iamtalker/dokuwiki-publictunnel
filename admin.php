@@ -158,13 +158,19 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
     /** 그 PID 가 정말 우리가 띄운 터널 프로그램인가(PID 가 다른 프로그램에 재사용된 경우를 막는다) */
     protected function pidIsTunnel($pid)
     {
-        $name = basename(str_replace('\\', '/', $this->binary()));
+        // 설정의 binary 가 바뀌었거나 이미지 이름이 조금 달라도(cloudflared / cloudflared.exe) 알아보도록,
+        // 실행 중인 프로세스의 이름이 cloudflared(.exe) 인지만 본다(시작할 때 이 이름만 허용했다)
+        $re = '/^cloudflared(\.exe)?$/i';
         if ($this->isWindows()) {
             $t = $this->winTasks('PID eq ' . (int) $pid);
-            return isset($t[(int) $pid]) && strcasecmp($t[(int) $pid], $name) === 0;
+            return isset($t[(int) $pid]) && preg_match($re, $t[(int) $pid]) === 1;
         }
         $cmd = @file_get_contents('/proc/' . (int) $pid . '/cmdline');
-        return $cmd !== false && strpos($cmd, $name) !== false;
+        if ($cmd === false) {
+            return false;
+        }
+        $parts = explode("\0", $cmd);
+        return preg_match($re, basename($parts[0])) === 1;
     }
 
     /** 열려 있는 터널의 상태(없으면 빈 배열). pid 가 0 이면 시작하는 중 */
@@ -189,7 +195,7 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             return '';
         }
         $txt = (string) @file_get_contents($log, false, null, max(0, filesize($log) - 65536));
-        return preg_match('~https://[a-z0-9-]+\.trycloudflare\.com~i', $txt, $m) ? $m[0] : '';
+        return preg_match('~https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com~i', $txt, $m) ? $m[0] : '';
     }
 
     protected function logTail($bytes = 3000)
@@ -292,6 +298,11 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             }
             for ($i = 0; $i < 10 && $this->pidAlive($pid); $i++) {
                 usleep(200000);
+            }
+            if ($this->pidAlive($pid)) {
+                // 끝나지 않았다: 검문소(상태 파일)를 남겨 둔다. 지우면 아직 열려 있는 터널이 무방비가 된다.
+                msg($this->getLang('err_stop'), -1);
+                return;
             }
         }
         $this->h()->clearState();

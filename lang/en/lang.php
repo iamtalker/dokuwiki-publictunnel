@@ -68,3 +68,5 @@ $lang['gate_bad']      = 'Wrong code.';
 $lang['gate_locked']   = 'Too many wrong codes. Try again in %d minutes.';
 $lang['deny_admin']    = 'The admin screen cannot be opened through the public address.';
 $lang['deny_readonly'] = 'The public address is read-only.';
+$lang['gate_state']    = 'The access check is temporarily unavailable. Try again in a moment.';
+$lang['err_stop']      = 'Could not stop the tunnel program. It is still running and stays protected; try again or end the cloudflared process manually.';
