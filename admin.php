@@ -512,6 +512,20 @@ class admin_plugin_publictunnel extends DokuWiki_Admin_Plugin
             echo '<div class="success"><strong>' . hsc($this->getLang('state_on')) . '</strong></div>';
             echo '<p><strong>' . hsc($this->getLang('url')) . ':</strong> <a href="' . hsc($url) . '" target="_blank" rel="noopener" '
                 . 'style="font-size:1.2em">' . hsc($url) . '</a></p>';
+            // 휴대폰으로 옮기기 쉽게: 주소의 QR 코드와 복사 버튼(주소만 담는다. 비밀은 들어 있지 않다)
+            echo '<div id="ptunnel-urlqr" style="margin:.6em 0;line-height:0"></div>';
+            echo '<p style="margin:.2em 0 .8em"><button type="button" class="button" id="ptunnel-copyurl" data-uri="' . hsc($url) . '" '
+                . 'data-done="' . hsc($this->getLang('copied')) . '">' . hsc($this->getLang('btn_copy_url')) . '</button> '
+                . '<span style="color:#777;font-size:.9em">' . hsc($this->getLang('url_qr_hint')) . '</span></p>';
+            echo '<script>' . (string) @file_get_contents(__DIR__ . '/qr.js')
+                . ';(function(){try{document.getElementById("ptunnel-urlqr").innerHTML=ptQrSvg('
+                . json_encode($url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ',240);}catch(e){}'
+                . 'var b=document.getElementById("ptunnel-copyurl");if(!b)return;b.onclick=function(){'
+                . 'var u=b.getAttribute("data-uri"),d=b.getAttribute("data-done");'
+                . 'function ok(){var t=b.textContent;b.textContent=d;setTimeout(function(){b.textContent=t;},1500);}'
+                . 'function old(){var a=document.createElement("textarea");a.value=u;document.body.appendChild(a);a.select();'
+                . 'try{document.execCommand("copy");ok();}catch(e){}document.body.removeChild(a);}'
+                . 'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(ok,old);}else{old();}};})();</script>';
             echo '<p>' . hsc($this->getLang(isset($st['gate']) && $st['gate'] === 'otp' ? 'gate_on' : 'gate_none')) . '</p>';
             echo '<p>' . hsc($this->getLang('local')) . ': ' . hsc($st['local']) . ' · ' . hsc($this->getLang('started')) . ': '
                 . hsc(date('Y-m-d H:i:s', (int) $st['started'])) . '</p>';
